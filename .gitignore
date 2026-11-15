@@ -10,6 +10,8 @@
 /.clang-format
 /.clang-tidy
 **/.test
+/ci-reports/
+__pycache__/
 /.appanalyzer
 
 # ArkUI-X 跨端构建缓存与本机配置（保留工程源码）

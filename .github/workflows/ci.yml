@@ -1,0 +1,313 @@
+# 校安通持续集成（CI）
+#
+# 托管 job（GitHub-hosted runner，PR 与 main push 必跑）：
+#   - lint        校验仓库根的 code-linter.json5 规则集与 scripts/*.cjs 语法，日志归档为 artifact
+#   - regression  在无 DevEco Studio、无 local.properties、无设备的干净 runner 上运行 65 项 Node 回归
+#
+# 自托管 job（仅 workflow_dispatch 手动触发，不会因缺少 runner 而阻塞 PR）：
+#   - arkts-lint  DevEco CodeLinter 读取仓库根 code-linter.json5，报告归档为 artifact
+#   - build       未签名 Debug HAP 构建，不读取 signing/ 中的签名材料
+#
+# 自托管 runner 要求：标签 self-hosted / windows / x64 / harmonyos；Windows + PowerShell 7 (pwsh)；
+# 已安装 DevEco Studio（DEVECO_SDK_HOME 指向其 sdk 目录，自带 Node / hvigor / ohpm / JBR）、Git、
+# Python 3、CMake 与 Ninja；codelinter 命令行工具需在 PATH 中；ohpm registry 已按团队配置（~/.ohpm/.ohpmrc）。
+# 首次 build 需能访问 github.com（MNN 源码）与 huggingface.co（454MB 模型），或提前预热 actions/cache。
+# 这些工具属于本地/私有环境，因此 ArkTS 检查与 HAP 构建只做手动门禁，不伪装成全自动。
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_arkts_lint:
+        description: 在自托管 HarmonyOS runner 上运行 ArkTS CodeLinter
+        type: boolean
+        default: false
+      run_unsigned_build:
+        description: 在自托管 HarmonyOS runner 上构建未签名 Debug HAP
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  TYPESCRIPT_VERSION: "5.9.3"
+
+jobs:
+  lint:
+    name: lint (config + scripts)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Show tool versions
+        run: node --version && npm --version
+
+      - name: Install JSON5 parser
+        run: npm install --no-save --no-package-lock json5@2.2.3
+
+      - name: Check Node script syntax
+        run: |
+          set -euo pipefail
+          mkdir -p ci-reports
+          status=0
+          for file in scripts/*.cjs; do
+            echo "::group::node --check ${file}"
+            echo "--- ${file}" >> ci-reports/node-syntax.log
+            node --check "${file}" 2>&1 | tee -a ci-reports/node-syntax.log || status=1
+            echo "::endgroup::"
+          done
+          exit "${status}"
+
+      - name: Validate code-linter.json5 rule set
+        run: |
+          set -euo pipefail
+          mkdir -p ci-reports
+          node - <<'NODE' 2>&1 | tee ci-reports/code-linter-check.log
+          const fs = require('node:fs');
+          const JSON5 = require('json5');
+          const config = JSON5.parse(fs.readFileSync('code-linter.json5', 'utf8'));
+          const rules = config.rules || {};
+          const requiredRuleSets = ['plugin:@performance/recommended', 'plugin:@typescript-eslint/recommended'];
+          const requiredSecurityRules = [
+            '@security/no-unsafe-aes',
+            '@security/no-unsafe-hash',
+            '@security/no-unsafe-mac',
+            '@security/no-unsafe-dh',
+            '@security/no-unsafe-dsa',
+            '@security/no-unsafe-ecdsa',
+            '@security/no-unsafe-rsa-encrypt',
+            '@security/no-unsafe-rsa-sign',
+            '@security/no-unsafe-rsa-key',
+            '@security/no-unsafe-dsa-key',
+            '@security/no-unsafe-dh-key',
+            '@security/no-unsafe-3des'
+          ];
+          const expectedSeverity = { '@security/no-unsafe-mac': 'warn' };
+          const problems = [];
+          if (!Array.isArray(config.files) || !config.files.includes('**/*.ets')) {
+            problems.push('files 未包含 **/*.ets');
+          }
+          for (const ruleSet of requiredRuleSets) {
+            if (!(config.ruleSet || []).includes(ruleSet)) problems.push('缺少规则集 ' + ruleSet);
+          }
+          for (const rule of requiredSecurityRules) {
+            if (!(rule in rules)) {
+              problems.push('缺少安全规则 ' + rule);
+              continue;
+            }
+            const actual = Array.isArray(rules[rule]) ? rules[rule][0] : rules[rule];
+            const expected = expectedSeverity[rule] || 'error';
+            if (actual !== expected) {
+              problems.push(rule + ' 级别应为 ' + expected + '，实际为 ' + JSON.stringify(actual));
+            }
+          }
+          const summary = {
+            config: 'code-linter.json5',
+            files: config.files,
+            ruleSet: config.ruleSet,
+            securityRules: requiredSecurityRules.filter((rule) => rule in rules).length,
+            configuredRules: Object.keys(rules).length,
+            problems
+          };
+          console.log(JSON.stringify(summary, null, 2));
+          if (problems.length > 0) process.exitCode = 1;
+          NODE
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: ci-reports
+          if-no-files-found: warn
+
+  regression:
+    name: regression (Node, no device)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Show tool versions
+        run: node --version && npm --version
+
+      - name: Install TypeScript ${{ env.TYPESCRIPT_VERSION }}
+        run: npm install --no-save --no-package-lock typescript@${{ env.TYPESCRIPT_VERSION }}
+
+      - name: Verify clean-runner prerequisites
+        env:
+          TYPESCRIPT_PATH: ${{ github.workspace }}/node_modules/typescript
+        run: |
+          set -euo pipefail
+          test ! -e local.properties
+          node -e "const ts = require(process.env.TYPESCRIPT_PATH); if (!ts.transpileModule || !ts.ScriptTarget) { console.error('Unsupported TypeScript API'); process.exit(1); } console.log('TypeScript loaded from ' + process.env.TYPESCRIPT_PATH);"
+
+      - name: Run assistant regression
+        env:
+          TYPESCRIPT_PATH: ${{ github.workspace }}/node_modules/typescript
+        run: |
+          set -euo pipefail
+          mkdir -p ci-reports
+          node scripts/test-assistant.cjs 2>&1 | tee ci-reports/test-assistant.log
+
+      - name: Run Markdown regression
+        env:
+          TYPESCRIPT_PATH: ${{ github.workspace }}/node_modules/typescript
+        run: |
+          set -euo pipefail
+          mkdir -p ci-reports
+          node scripts/test-markdown.cjs 2>&1 | tee ci-reports/test-markdown.log
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-report
+          path: ci-reports
+          if-no-files-found: warn
+
+  arkts-lint:
+    name: arkts-lint (self-hosted, manual)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_arkts_lint }}
+    runs-on: [self-hosted, windows, x64, harmonyos]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Locate CodeLinter
+        shell: pwsh
+        run: |
+          $codelinter = Get-Command codelinter -ErrorAction SilentlyContinue
+          if (-not $codelinter) {
+            throw 'codelinter 不在 PATH 中：请在自托管 runner 安装 DevEco Studio，并将 CodeLinter 命令行工具加入 PATH。'
+          }
+          Write-Host "Using $($codelinter.Source)"
+
+      - name: Run CodeLinter with repository rules
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ci-reports | Out-Null
+          codelinter -c code-linter.json5 -p default . -f json -o ci-reports/codelinter-report.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload ArkTS lint report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: arkts-lint-report
+          path: ci-reports
+          if-no-files-found: warn
+
+  build:
+    name: build-debug-hap (self-hosted, manual, unsigned)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_unsigned_build }}
+    runs-on: [self-hosted, windows, x64, harmonyos]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve DevEco toolchain
+        shell: pwsh
+        run: |
+          $sdk = $env:DEVECO_SDK_HOME
+          if (-not $sdk) {
+            if (Test-Path local.properties) {
+              $line = (Get-Content local.properties | Select-String '^hwsdk\.dir=').Line
+              $sdk = $line.Substring('hwsdk.dir='.Length).Trim() -replace '\\(.)', '$1'
+            } else {
+              throw 'DEVECO_SDK_HOME 未设置：请在 runner 上配置 HarmonyOS SDK 路径。'
+            }
+          }
+          $ide = Split-Path $sdk -Parent
+          $node = Join-Path $ide 'tools/node/node.exe'
+          $hvigor = Join-Path $ide 'tools/hvigor/bin/hvigorw.js'
+          $ohpm = Join-Path $ide 'tools/ohpm/bin/ohpm.bat'
+          $java = Join-Path $ide 'jbr/bin/java.exe'
+          foreach ($tool in @($node, $hvigor, $ohpm, $java)) {
+            if (-not (Test-Path $tool)) { throw "缺少构建工具：$tool" }
+          }
+          $envLines = @(
+            "DEVECO_SDK_HOME=$sdk",
+            "DEVECO_IDE_HOME=$ide",
+            "JAVA_HOME=$(Join-Path $ide 'jbr')"
+          )
+          [IO.File]::AppendAllText($env:GITHUB_ENV, (($envLines -join [Environment]::NewLine) + [Environment]::NewLine))
+          $pathLines = @(
+            (Join-Path $ide 'tools/node'),
+            (Join-Path $ide 'tools/ohpm/bin'),
+            (Join-Path $ide 'jbr/bin')
+          )
+          [IO.File]::AppendAllText($env:GITHUB_PATH, (($pathLines -join [Environment]::NewLine) + [Environment]::NewLine))
+
+      - name: Cache model and native runtime
+        uses: actions/cache@v6
+        with:
+          path: |
+            .regression/vendor/MNN
+            .regression/models
+            entry/libs
+            entry/src/main/resources/rawfile/xiaoan
+          key: harmonyos-deps-${{ runner.os }}-${{ hashFiles('scripts/build-xiaoan-runtime.ps1', 'scripts/prepare-xiaoan-model.py') }}
+
+      - name: Install OHPM dependencies
+        shell: pwsh
+        run: ohpm install --all
+
+      - name: Prepare MNN native runtime
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'entry/libs/arm64-v8a/libMNN.so')) {
+            & scripts/build-xiaoan-runtime.ps1
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Prepare Qwen3 model resources
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'entry/src/main/resources/rawfile/xiaoan/manifest.json')) {
+            python scripts/prepare-xiaoan-model.py --bundle
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Assemble unsigned debug HAP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ci-reports | Out-Null
+          & "$env:DEVECO_IDE_HOME/tools/node/node.exe" "$env:DEVECO_IDE_HOME/tools/hvigor/bin/hvigorw.js" assembleHap --mode module -p product=default -p buildMode=debug --no-daemon 2>&1 | Tee-Object -FilePath ci-reports/build-debug.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload debug HAP
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-hap
+          path: |
+            entry/build/default/outputs/default/*.hap
+            ci-reports
+          if-no-files-found: warn
