@@ -12,6 +12,8 @@ import {
   TaskStatus
 } from '../main/ets/model/Task';
 
+import { User, UserRole } from '../main/ets/model/User';
+
 import { MemoryEventStore } from '../main/ets/repository/store/MemoryEventStore';
 
 import { EventRepository } from '../main/ets/repository/EventRepository';
@@ -21,6 +23,19 @@ import { EventService } from '../main/ets/service/EventService';
 import { EventWorkflowService } from '../main/ets/service/EventWorkflowService';
 import { AccountService } from '../main/ets/service/AccountService';
 import { TEST_ADMIN, TEST_STUDENT } from './TestAuthFixture';
+
+function buildVisibilityTask(id: string, eventId: string, assignee: string): Task {
+  return {
+    id: id,
+    eventId: eventId,
+    title: '任务可见性测试',
+    location: '教学楼一层',
+    description: '验证任务页按角色过滤任务',
+    assignee: assignee,
+    createTime: '2026-09-09 10:00:00',
+    status: TaskStatus.PENDING
+  };
+}
 
 export default function eventWorkflowTest() {
   describe('EventWorkflowTest', () => {
@@ -451,6 +466,46 @@ export default function eventWorkflowTest() {
         expect(event.title.indexOf('应急灯') >= 0).assertTrue();
         expect(event.title.endsWith('…')).assertTrue();
       }
+    });
+
+    it('task_visibility_student_sees_no_tasks', 0, () => {
+      const repo = EventRepository.getInstance();
+      const event: SecurityEvent = EventWorkflowService.simulateAndEnqueue(0);
+      repo.saveTask(buildVisibilityTask('TASK-VIS-STUDENT', event.id, 'inspector_001'));
+      // 管理员视角应能看到刚创建的任务
+      expect(EventService.getAllTasksForViewing().length).assertEqual(1);
+      // 学生视角：任务页不得泄露全校工单
+      AccountService.setCurrentUserForTest(TEST_STUDENT);
+      expect(EventService.getAllTasksForViewing().length).assertEqual(0);
+      expect(EventService.getAllTasks().length).assertEqual(0);
+    });
+
+    it('task_visibility_security_only_sees_assigned_tasks', 0, () => {
+      const repo = EventRepository.getInstance();
+      const mine: SecurityEvent = EventWorkflowService.simulateAndEnqueue(0);
+      const theirs: SecurityEvent = EventWorkflowService.simulateAndEnqueue(1);
+      repo.saveTask(buildVisibilityTask('TASK-VIS-MINE', mine.id, 'inspector_001'));
+      repo.saveTask(buildVisibilityTask('TASK-VIS-OTHER', theirs.id, 'inspector_002'));
+      const securityUser: User = {
+        id: 'inspector_001',
+        name: '测试巡检员',
+        role: UserRole.SECURITY
+      };
+      AccountService.setCurrentUserForTest(securityUser);
+      const visible: Task[] = EventService.getAllTasksForViewing();
+      expect(visible.length).assertEqual(1);
+      expect(visible[0].id).assertEqual('TASK-VIS-MINE');
+      expect(visible[0].assignee).assertEqual('inspector_001');
+    });
+
+    it('task_visibility_admin_sees_all_tasks', 0, () => {
+      const repo = EventRepository.getInstance();
+      const first: SecurityEvent = EventWorkflowService.simulateAndEnqueue(0);
+      const second: SecurityEvent = EventWorkflowService.simulateAndEnqueue(1);
+      repo.saveTask(buildVisibilityTask('TASK-VIS-A', first.id, 'inspector_001'));
+      repo.saveTask(buildVisibilityTask('TASK-VIS-B', second.id, 'inspector_002'));
+      const visible: Task[] = EventService.getAllTasksForViewing();
+      expect(visible.length).assertEqual(2);
     });
   });
 }
