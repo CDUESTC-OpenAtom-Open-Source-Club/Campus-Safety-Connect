@@ -7,6 +7,7 @@
 ![ArkUI-X](https://img.shields.io/badge/Cross--Platform-ArkUI--X-orange?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Stable-success?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-v1.0.0-blue?style=flat-square)
+[![CI](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey?style=flat-square)
 
 基于 OpenHarmony / HarmonyOS 原生 ArkUI 与 ArkTS 开发的校园安全协同应用，覆盖「发现 - 确认 - 派单 - 处理 - 反馈 - 完成」的完整安全事件闭环，并通过 ArkUI-X 支持 Android 跨平台运行。
@@ -209,7 +210,51 @@ https://github.com/CDUESTC-OpenAtom-Open-Source-Club/openharmony-campus-safety/r
 | 业务闭环 | 确认、任务生成、防重复、状态联动 |
 | 稳定性 | 空数据处理、连续操作、批量生成 |
 
-使用 Hypium 与 hamock，测试代码位于 `entry/src/test/`。
+使用 Hypium 与 hamock，测试代码位于 `entry/src/test/`，设备侧用例位于 `entry/src/ohosTest/`。
+
+### 无需设备：Node 回归（与 CI 相同）
+
+两个脚本直接执行生产代码，不依赖 DevEco Studio、`local.properties`、真机或网络，共 65 项断言：
+
+```bash
+npm install --no-save --no-package-lock typescript@5.9.3
+TYPESCRIPT_PATH="$PWD/node_modules/typescript" node scripts/test-assistant.cjs
+TYPESCRIPT_PATH="$PWD/node_modules/typescript" node scripts/test-markdown.cjs
+```
+
+Windows PowerShell：
+
+```powershell
+npm install --no-save --no-package-lock typescript@5.9.3
+$env:TYPESCRIPT_PATH = "$PWD\node_modules\typescript"
+node scripts/test-assistant.cjs
+node scripts/test-markdown.cjs
+```
+
+### 未签名 Debug 构建
+
+```bash
+hvigorw assembleHap --mode module -p product=default -p buildMode=debug
+```
+
+命令需在已配置 DevEco Studio / HarmonyOS SDK 的终端执行；干净克隆先运行 `scripts/build-xiaoan-runtime.ps1` 与 `python scripts/prepare-xiaoan-model.py --bundle`。CI 的未签名构建不读取 `signing/` 中的签名材料。
+
+### 设备侧 Hypium 单测
+
+`entry/src/test/List.test.ets` 汇总 9 个 hypium 套件，`entry/src/ohosTest/` 包含设备侧用例。单测依赖真机或模拟器，当前未接入自动流水线，需在 DevEco Studio 中执行；执行时间与结论记录在 [发布状态](RELEASE_STATUS.md)。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 定义质量门禁：
+
+| Job | Runner | 触发 | 内容 |
+| :--- | :--- | :--- | :--- |
+| `lint` | GitHub 托管 Ubuntu | PR、push `main` | 校验 `code-linter.json5` 规则集与 `scripts/*.cjs` 语法，日志归档为 artifact |
+| `regression` | GitHub 托管 Ubuntu | PR、push `main` | 固定 TypeScript 5.9.3，在无 DevEco、无设备的干净环境运行 65 项 Node 回归 |
+| `arkts-lint` | 自托管（`self-hosted, windows, x64, harmonyos`） | 手动 `workflow_dispatch` | `codelinter -c code-linter.json5`，报告归档 |
+| `build` | 自托管（同上） | 手动 `workflow_dispatch` | 未签名 Debug HAP 构建，产物归档 |
+
+托管 job 不依赖 `local.properties`、设备、签名材料或 DevEco Studio。ArkTS CodeLinter 与 HAP 构建需要安装 DevEco Studio 的自托管 runner，只做手动门禁，不随 PR 排队，避免缺少 runner 时阻塞合并；在分支保护中把 `lint` 与 `regression` 设为 required checks 后，未通过的 PR 无法合并。
 
 ---
 

@@ -38,3 +38,9 @@
 - 已生成 HarmonyOS Release 签名 APP 与 HAP，证书及 Profile 与提供的 0.2.5 上架包一致；两者通过签名验证，模型与 ARM64 运行库已检查。
 - 65 项服务和 Markdown 回归通过；模型对话及提醒创建、取消曾在 Debug 模拟器验证。签名 Release 未在实体手机安装，也未确认提交 AGC 或上线。
 - 模型和运行库二进制不入库；干净克隆需执行模型准备和运行库构建脚本。签名私钥、口令及本机加密材料不入库。
+
+## 持续集成（2026-11-15）
+
+- 新增 `.github/workflows/ci.yml`：`pull_request` 与 `push main` 自动运行 lint（`code-linter.json5` 规则集与 Node 脚本语法）与 regression（65 项 Node 回归），结果归档为 Actions artifact。
+- ArkTS CodeLinter 与未签名 Debug HAP 构建需要安装 DevEco Studio 的自托管 runner，目前为 `workflow_dispatch` 手动 job；设备侧 Hypium 单测仍需在 DevEco Studio 手工执行，不作为 PR 自动门禁。
+- 自动化结论以 GitHub Actions 运行记录为准；本节不能替代尚未执行的真机回归结果。
