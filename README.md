@@ -131,6 +131,8 @@ openharmony-campus-safety
 
 ## 构建与运行
 
+> **前置说明：仓库不含 hvigorw 包装脚本。** 本仓库只提交了 `hvigorfile.ts` 与 `hvigor/hvigor-config.json5`，根目录没有 `hvigorw` / `hvigorw.bat`，因此干净克隆后直接执行下面的 `hvigorw` 命令会提示 `hvigorw: command not found`（PowerShell 下为「无法将 hvigorw 项识别为 cmdlet」）。首次构建前，请先用 DevEco Studio 打开工程并完成一次 Sync，同步过程会生成 `hvigorw` / `hvigorw.bat` 包装脚本；也可以直接使用 DevEco Studio 自带的 hvigor 命令。Windows 下使用 `hvigorw.bat`（PowerShell 中写作 `.\hvigorw.bat`）。
+
 ### HarmonyOS / OpenHarmony
 
 使用 DevEco Studio 打开项目根目录，完成同步后选择 `entry` 模块运行。
