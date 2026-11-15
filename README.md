@@ -100,7 +100,7 @@ M8 已完成 HarmonyOS 原生校园安全服务卡片；M9 已完成真实统计
 ## 项目结构
 
 ```text
-openharmony-campus-safety
+Campus-Safety-Connect
 ├── AppScope                     # 应用级配置与资源
 ├── entry
 │   └── src
@@ -183,7 +183,7 @@ Release 使用本机被 Git 忽略的 AGC 签名配置，通过 `python scripts/
 
 AGC 已发布应用为「校安通」`0.2.5`，APPID 为 `6917618790016610414`。当前仓库 `1.0.0` 尚未提交发布。签名配置因含本机路径和口令未进入公开仓库；本地构建是否签名不代表商店是否已发布。
 
-当前 1.0.0 鸿蒙安装包与上架包发布在 [校安通 v1.0.0 Release](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/openharmony-campus-safety/releases/tag/v1.0.0)。提供鸿蒙 HAP 安装包和 APP 上架包，分别以 ZIP 提供，解压后使用。当前版本没有发布经过验证的 Android 安装包。
+1.0.0 构建产物目前仅在本地生成，尚未在 GitHub Release 提供下载：[校安通 v1.0.0 Release](https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/releases/tag/v1.0.0) 仍为草稿且附件为 0，公开链接不可访问；1.0.0 尚未发布。当前版本也没有发布经过验证的 Android 安装包。
 
 以下为早期 GitHub `v0.2.0` 的历史文件名，保留原始名称以便定位归档，不用于当前商店展示或新版本出包：
 
@@ -195,7 +195,7 @@ AGC 已发布应用为「校安通」`0.2.5`，APPID 为 `6917618790016610414`�
 发布地址：
 
 ```text
-https://github.com/CDUESTC-OpenAtom-Open-Source-Club/openharmony-campus-safety/releases/tag/v0.2.0
+https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/releases/tag/v0.2.0
 ```
 
 ---
