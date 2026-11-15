@@ -220,6 +220,7 @@ https://github.com/CDUESTC-OpenAtom-Open-Source-Club/openharmony-campus-safety/r
 - 完善权限申请与合规说明
 - 完成正式签名、HarmonyOS 云手机全量回归后发布稳定版
 - 云端协同、校园统一身份认证、分布式软总线与物联网接入不属于当前已实现能力
+- 本地小安不提供内容安全过滤；内容护栏仅用于云端模式
 
 ---
 
