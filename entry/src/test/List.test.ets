@@ -7,6 +7,7 @@ import permissionTest from './Permission.test';
 import emergencyContactTest from './EmergencyContact.test';
 import safetyStatisticsTest from './SafetyStatistics.test';
 import accountRegistrationTest from './AccountRegistration.test';
+import hazardValidationTest from './HazardValidation.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -18,4 +19,5 @@ export default function testsuite() {
   emergencyContactTest();
   safetyStatisticsTest();
   accountRegistrationTest();
+  hazardValidationTest();
 }

@@ -72,8 +72,9 @@ export class EventWorkflowService {
    * 学生隐患上报：接收用户填写的隐患信息，生成事件并落库。
    * 对应 C_MODULE_SPEC 数据流：B 表单与交互 → C 数据转换与事件生成 → EventService → Repository。
    *
-   * @param input 用户上报的隐患信息（title/location/description 必填，空值返回 undefined）
-   * @returns 落库后的 SecurityEvent（status 为 PENDING，等待确认）；必填项缺失时返回 undefined
+   * @param input 用户上报的隐患信息（title/location/description 必填；type 必须是 EventType 白名单值，
+   *   priority 缺省按 MEDIUM 处理，显式传入时必须是 EventPriority 白名单值）
+   * @returns 落库后的 SecurityEvent（status 为 PENDING，等待确认）；必填项缺失或枚举值非法时返回 undefined
    */
   static reportHazard(input: HazardReport): SecurityEvent | undefined {
     const currentUser: User | null = AccountService.getCurrentUser();
@@ -83,6 +84,30 @@ export class EventWorkflowService {
     if (input.title === undefined || input.title.trim() === '' ||
       input.location === undefined || input.location.trim() === '' ||
       input.description === undefined || input.description.trim() === '') {
+      return undefined;
+    }
+    // 枚举白名单校验：type / priority 会原样写入 security_event 表，脏值会让类型统计出现"消失"的记录
+    const validTypes: EventType[] = [
+      EventType.FIRE,
+      EventType.ELECTRIC,
+      EventType.FACILITY,
+      EventType.CAMPUS,
+      EventType.OTHER
+    ];
+    const validPriorities: EventPriority[] = [
+      EventPriority.LOW,
+      EventPriority.MEDIUM,
+      EventPriority.HIGH,
+      EventPriority.URGENT
+    ];
+    if (!validTypes.includes(input.type)) {
+      hilog.warn(EventWorkflowService.LOG_DOMAIN, EventWorkflowService.LOG_TAG,
+        'reportHazard rejected: invalid type=%{public}s', input.type);
+      return undefined;
+    }
+    if (input.priority !== undefined && !validPriorities.includes(input.priority)) {
+      hilog.warn(EventWorkflowService.LOG_DOMAIN, EventWorkflowService.LOG_TAG,
+        'reportHazard rejected: invalid priority=%{public}s', input.priority);
       return undefined;
     }
     const trimmedTitle: string = input.title.trim();
