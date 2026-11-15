@@ -44,14 +44,14 @@ env:
 jobs:
   lint:
     name: lint (config + scripts)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload lint report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-report
           path: ci-reports
@@ -139,14 +139,14 @@ jobs:
 
   regression:
     name: regression (Node, no device)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -182,7 +182,7 @@ jobs:
 
       - name: Upload regression report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: regression-report
           path: ci-reports
@@ -195,7 +195,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Locate CodeLinter
         shell: pwsh
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload ArkTS lint report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: arkts-lint-report
           path: ci-reports
@@ -228,7 +228,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve DevEco toolchain
         shell: pwsh
@@ -255,7 +255,7 @@ jobs:
           Join-Path $ide 'tools/ohpm/bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Cache model and native runtime
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .regression/vendor/MNN
@@ -293,7 +293,7 @@ jobs:
 
       - name: Upload debug HAP
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: debug-hap
           path: |
