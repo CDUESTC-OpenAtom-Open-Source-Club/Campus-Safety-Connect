@@ -187,10 +187,10 @@ AGC 已发布应用为「校安通」`0.2.5`，APPID 为 `6917618790016610414`�
 
 以下为早期 GitHub `v0.2.0` 的历史文件名，保留原始名称以便定位归档，不用于当前商店展示或新版本出包：
 
-| 平台 | 安装包 | 签名状态 | 说明 |
+| 平台 | 安装包文件（v0.2.0 附件原名） | 签名状态 | 说明 |
 | :--- | :--- | :--- | :--- |
-| HarmonyOS | 校安通历史 HarmonyOS 安装包（v0.2.0） | 已签名 Release HAP | 正式测试包 |
-| Android | 校安通历史 Android 安装包（v0.2.0） | 已签名 Release APK | ArkUI-X 跨平台包 |
+| HarmonyOS | `HongMengZhiAn-v0.2.0-HarmonyOS-signed.hap` | 已签名 Release HAP | 正式测试包，SHA256 校验值见附件 `SHA256SUMS.txt` |
+| Android | `HongMengZhiAn-v0.2.0-Android.apk` | 已签名 Release APK | ArkUI-X 跨平台包，SHA256 校验值见附件 `SHA256SUMS.txt` |
 
 发布地址：
 
