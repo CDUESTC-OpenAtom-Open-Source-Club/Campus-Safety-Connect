@@ -5,7 +5,7 @@
 ![ArkUI](https://img.shields.io/badge/UI-ArkUI-0A59F7?style=flat-square)
 ![Stage](https://img.shields.io/badge/Model-Stage-success?style=flat-square)
 ![ArkUI-X](https://img.shields.io/badge/Cross--Platform-ArkUI--X-orange?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Stable-success?style=flat-square)
+![Status](https://img.shields.io/badge/Status-pre--release-orange?style=flat-square)
 ![Version](https://img.shields.io/badge/Version-v1.0.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey?style=flat-square)
 
