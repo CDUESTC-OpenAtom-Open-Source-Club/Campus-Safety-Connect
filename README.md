@@ -237,7 +237,7 @@ node scripts/test-markdown.cjs
 hvigorw assembleHap --mode module -p product=default -p buildMode=debug
 ```
 
-命令需在已配置 DevEco Studio / HarmonyOS SDK 的终端执行；干净克隆先运行 `scripts/build-xiaoan-runtime.ps1` 与 `python scripts/prepare-xiaoan-model.py --bundle`。CI 的未签名构建不读取 `signing/` 中的签名材料。
+仓库未内置 `hvigorw` 包装脚本，命令需在 DevEco Studio 的终端中执行（或直接调用其 `tools/hvigor/bin/hvigorw.js`）；干净克隆先运行 `scripts/build-xiaoan-runtime.ps1` 与 `python scripts/prepare-xiaoan-model.py --bundle`。CI 的未签名构建不读取 `signing/` 中的签名材料。
 
 ### 设备侧 Hypium 单测
 
@@ -254,7 +254,7 @@ hvigorw assembleHap --mode module -p product=default -p buildMode=debug
 | `arkts-lint` | 自托管（`self-hosted, windows, x64, harmonyos`） | 手动 `workflow_dispatch` | `codelinter -c code-linter.json5`，报告归档 |
 | `build` | 自托管（同上） | 手动 `workflow_dispatch` | 未签名 Debug HAP 构建，产物归档 |
 
-托管 job 不依赖 `local.properties`、设备、签名材料或 DevEco Studio。ArkTS CodeLinter 与 HAP 构建需要安装 DevEco Studio 的自托管 runner，只做手动门禁，不随 PR 排队，避免缺少 runner 时阻塞合并；在分支保护中把 `lint` 与 `regression` 设为 required checks 后，未通过的 PR 无法合并。
+托管 job 不依赖 `local.properties`、设备、签名材料或 DevEco Studio。自托管 job 需要 Windows runner（标签 `self-hosted, windows, x64, harmonyos`）、PowerShell 7、DevEco Studio（`DEVECO_SDK_HOME`）、Git、Python 3、CMake/Ninja 与 PATH 中的 `codelinter`，首次运行还需能访问 GitHub 与 HuggingFace。ArkTS CodeLinter 与 HAP 构建只做手动门禁，不随 PR 排队，避免缺少 runner 时阻塞合并；在分支保护中把 `lint (config + scripts)` 与 `regression (Node, no device)` 设为 required checks 后，未通过的 PR 无法合并（需要仓库管理员权限）。
 
 ---
 

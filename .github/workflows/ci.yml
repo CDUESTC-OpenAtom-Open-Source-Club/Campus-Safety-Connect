@@ -8,8 +8,10 @@
 #   - arkts-lint  DevEco CodeLinter 读取仓库根 code-linter.json5，报告归档为 artifact
 #   - build       未签名 Debug HAP 构建，不读取 signing/ 中的签名材料
 #
-# 自托管 runner 要求：标签 self-hosted / windows / x64 / harmonyos，已安装 DevEco Studio
-# （DEVECO_SDK_HOME 指向其 sdk 目录）、Git、Python 3、CMake 与 Ninja；codelinter 需在 PATH 中。
+# 自托管 runner 要求：标签 self-hosted / windows / x64 / harmonyos；Windows + PowerShell 7 (pwsh)；
+# 已安装 DevEco Studio（DEVECO_SDK_HOME 指向其 sdk 目录，自带 Node / hvigor / ohpm / JBR）、Git、
+# Python 3、CMake 与 Ninja；codelinter 命令行工具需在 PATH 中；ohpm registry 已按团队配置（~/.ohpm/.ohpmrc）。
+# 首次 build 需能访问 github.com（MNN 源码）与 huggingface.co（454MB 模型），或提前预热 actions/cache。
 # 这些工具属于本地/私有环境，因此 ArkTS 检查与 HAP 构建只做手动门禁，不伪装成全自动。
 
 name: CI
@@ -246,13 +248,22 @@ jobs:
           $node = Join-Path $ide 'tools/node/node.exe'
           $hvigor = Join-Path $ide 'tools/hvigor/bin/hvigorw.js'
           $ohpm = Join-Path $ide 'tools/ohpm/bin/ohpm.bat'
-          foreach ($tool in @($node, $hvigor, $ohpm)) {
+          $java = Join-Path $ide 'jbr/bin/java.exe'
+          foreach ($tool in @($node, $hvigor, $ohpm, $java)) {
             if (-not (Test-Path $tool)) { throw "缺少构建工具：$tool" }
           }
-          "DEVECO_SDK_HOME=$sdk" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "DEVECO_IDE_HOME=$ide" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Join-Path $ide 'tools/node' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          Join-Path $ide 'tools/ohpm/bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $envLines = @(
+            "DEVECO_SDK_HOME=$sdk",
+            "DEVECO_IDE_HOME=$ide",
+            "JAVA_HOME=$(Join-Path $ide 'jbr')"
+          )
+          [IO.File]::AppendAllText($env:GITHUB_ENV, (($envLines -join [Environment]::NewLine) + [Environment]::NewLine))
+          $pathLines = @(
+            (Join-Path $ide 'tools/node'),
+            (Join-Path $ide 'tools/ohpm/bin'),
+            (Join-Path $ide 'jbr/bin')
+          )
+          [IO.File]::AppendAllText($env:GITHUB_PATH, (($pathLines -join [Environment]::NewLine) + [Environment]::NewLine))
 
       - name: Cache model and native runtime
         uses: actions/cache@v6
