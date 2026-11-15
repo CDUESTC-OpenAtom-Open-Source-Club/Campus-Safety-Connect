@@ -2,7 +2,7 @@
 
 助手的本地模式、API 配置和提醒机制见 [开发版助手说明](AI_ASSISTANT.md)。在线回复不会自动加载模型提供的图片，避免额外联网；Markdown 解析与原生展示继续复用本功能。
 
-本功能属于校安通仓库的 AI 开发能力，仅在 Debug 构建开放。AGC 已发布的 0.2.5 不含 AI；当前 Release 构建也未开放 AI 入口，不能据此文档宣传 AI 已正式上线。
+本功能属于校安通仓库的 AI 开发能力，Debug 与 Release 构建均包含小安入口（以当前代码为准，`entry/src/main/ets/pages/Index.ets` 首页无条件渲染入口且无构建开关）。AGC 已发布的 0.2.5 不含 AI，不能据此文档宣传 AI 已正式上线。
 
 AI 回复通过 `MarkdownParser` 解析为数据块，再由原生 ArkUI 组件 `MarkdownContent` 展示。每条回复只在创建消息时解析一次，不依赖 WebView、远端页面或新增三方库。用户发送的消息按纯文本显示。
 
