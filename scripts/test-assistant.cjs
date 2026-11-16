@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 const props = fs.existsSync(path.join(root, 'local.properties')) ? fs.readFileSync(path.join(root, 'local.properties'), 'utf8') : '';
 const sdk = props.match(/^hwsdk\.dir=(.+)$/m)?.[1].trim().replace(/\\(.)/g, '$1');
 const ts = require(process.env.TYPESCRIPT_PATH || (sdk ? path.join(sdk, 'default/openharmony/ets/build-tools/ets-loader/node_modules/typescript') : 'typescript'));
-let user, supported, assets, prefs, published, canceled, request, sessionOptions, closed, status, response, failFlush, allowNotification, calls;
+let user, supported, assets, prefs, published, canceled, request, sessionOptions, closed, status, response, failFlush, allowNotification, calls, destinationErrors;
 let reviewVerdict, requests, afterFetch, tasks, events;
 let nativeCalls, nativeAnswer, nativeAfter, nativeAnswers;
 let chatFiles, chatDirs, chatHandles, chatFd, failChatWrite;
@@ -52,9 +52,18 @@ const doubles = {
         const isReview = JSON.parse(req.content).messages[0].content.includes('审核器');
         const bytes = Buffer.from(isReview && status === 200 ? JSON.stringify({ choices: [{ message: { content: reviewVerdict } }] }) : response);
         const middle = Math.floor(bytes.length / 2);
+        let callbackError = null;
         for (const chunk of [bytes.subarray(0, middle), bytes.subarray(middle)]) {
-          await req.destination(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength));
+          const data = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
+          // Real RCP delivers the body on an independent callback thread: a throw inside the
+          // destination callback never reaches the fetch caller, it fails fetch with
+          // BusinessError 1007900042 "Callback function termination".
+          await new Promise(resolve => setImmediate(() => {
+            try { req.destination(data); } catch (e) { callbackError = e; destinationErrors.push(e); }
+            resolve();
+          }));
         }
+        if (callbackError) throw new Error('Callback function termination');
         if (afterFetch) afterFetch(calls);
         return { statusCode: status };
       }, close() { closed++; }
@@ -106,7 +115,7 @@ const { AssistantConversationService: conversations } = load('AssistantConversat
 const sample = () => ({ endpoint: 'https://provider.example/v1/chat/completions', model: 'test-model', apiKey: 'test-only-not-a-secret' });
 beforeEach(() => {
   user = { id: 'user_A' }; supported = true; assets = new Map(); prefs = new Map(); published = []; canceled = [];
-  request = null; sessionOptions = null; closed = 0; status = 200; calls = 0;
+  request = null; sessionOptions = null; closed = 0; status = 200; calls = 0; destinationErrors = [];
   response = JSON.stringify({ choices: [{ message: { role: 'assistant', content: '你好，校园！' } }] });
   failFlush = false; allowNotification = true; config.clearSession();
   reviewVerdict = 'SAFE'; requests = []; afterFetch = null; tasks = []; events = [];
@@ -536,9 +545,11 @@ test('malformed API payloads, tools-only replies and empty answers fail closed',
     assert.throws(() => chat.parseAnswer(raw));
   }
 });
-test('oversized request does not call network; oversized response closes session', async () => {
+test('oversized request does not call network; oversized response rejects once and closes session once', async () => {
   await assert.rejects(chat.sendMessage('x'.repeat(2001), sample())); assert.equal(calls, 0);
-  response = 'x'.repeat(262145); await assert.rejects(chat.sendMessage('问题', sample())); assert.ok(closed >= 1);
+  response = 'x'.repeat(300 * 1024);
+  await assert.rejects(chat.sendMessage('问题', sample()), /API 返回内容过大/);
+  assert.equal(calls, 1); assert.equal(closed, 1); assert.deepEqual(destinationErrors, []);
 });
 test('confirmed reminder is scheduled once with correct calendar time and account record', async () => {
   await reminders.create({}, 'user_A', '检查门窗', '2035-01-02', '15:30');
