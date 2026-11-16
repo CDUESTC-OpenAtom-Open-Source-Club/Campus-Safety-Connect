@@ -1,0 +1,106 @@
+name: Bug 报告
+description: 报告可复现的问题，帮助改进校安通
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！提交前请先搜索现有 Issue，避免重复报告。
+
+        **请勿**粘贴签名口令、API Key、真实账号口令、AGC 测试账号、本机绝对路径，或未脱敏的日志与截图。
+
+  - type: input
+    id: app-version
+    attributes:
+      label: 应用版本
+      description: 应用内显示的版本，或 AppScope/app.json5 中的 versionName 与 versionCode
+      placeholder: "例如：1.0.0 / 1000100"
+    validations:
+      required: true
+
+  - type: input
+    id: ide-version
+    attributes:
+      label: DevEco Studio 与 HarmonyOS SDK / API 版本
+      description: 仅运行 Node 回归时请说明“未使用 DevEco Studio”
+      placeholder: "例如：DevEco Studio 6.0.0；HarmonyOS SDK 6.0.0（API 20）"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: 运行环境
+      options:
+        - 真机（HarmonyOS）
+        - 模拟器
+        - 预览器
+        - 未运行应用（构建 / 测试脚本）
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 设备型号与系统版本
+      description: 真机或模拟器请填写；非运行问题填“不适用”
+      placeholder: "例如：HarmonyOS 6 API 20 模拟器 / Mate 60（HarmonyOS 6.0）"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-mode
+    attributes:
+      label: 构建类型
+      options:
+        - Debug
+        - Release
+        - 不确定
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 按顺序写清操作路径、输入和前置条件，确保他人可以重复
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 输入……
+        4. 观察到……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 可附截图；请先遮盖个人信息、账号与密钥
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志与补充信息（已脱敏）
+      description: 可粘贴 HiLog、构建或 Node 报错；请删除口令、API Key、账号、本机路径与签名材料
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: other
+    attributes:
+      label: 其它说明
+      description: 是否与特定账号、数据状态或网络环境相关
+    validations:
+      required: false

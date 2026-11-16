@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先搜索现有 Issue
+    url: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/issues?q=is%3Aissue
+    about: 提交前请确认问题或建议尚未被报告
+  - name: 贡献指南
+    url: https://github.com/CDUESTC-OpenAtom-Open-Source-Club/Campus-Safety-Connect/blob/main/CONTRIBUTING.md
+    about: 环境准备、分支与提交信息约定、PR 必填验证项
