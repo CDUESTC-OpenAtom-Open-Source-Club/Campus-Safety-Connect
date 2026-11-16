@@ -344,6 +344,20 @@ test('API configuration accepts HTTPS completions and rejects credential-bearing
   }
   assert.notEqual(config.validate({ ...sample(), apiKey: 'a\r\nb' }), '');
 });
+test('custom model endpoints reject loopback, private networks and invalid ports', () => {
+  for (const endpoint of ['https://192.168.1.20/v1/chat/completions', 'https://127.0.0.1:8443/chat/completions',
+    'https://localhost/chat/completions', 'https://10.0.0.8/v1/chat/completions', 'https://172.20.0.8/v1/chat/completions',
+    'https://169.254.10.8/v1/chat/completions', 'https://0.0.0.0/v1/chat/completions',
+    'https://provider.example:65536/v1/chat/completions', 'https://provider.example:0/v1/chat/completions',
+    'https://provider.example./v1/chat/completions', 'https://provider..example/v1/chat/completions']) {
+    const message = config.validate({ ...sample(), endpoint });
+    assert.notEqual(message, '');
+    assert.match(message, /[\u4e00-\u9fa5]/);
+  }
+  for (const p of providers.ALL.slice(0, 3)) {
+    assert.equal(config.validate({ endpoint: p.endpoint, model: p.model, apiKey: sample().apiKey }), '');
+  }
+});
 test('persisted API settings are stored as one secure asset, never in preferences', async () => {
   await config.save('user_A', sample(), true); config.clearSession();
   const saved = await config.load({}, 'user_A'); assert.deepEqual(saved, sample());
@@ -362,6 +376,9 @@ test('preset providers contain official HTTPS routes and valid default models', 
     assert.equal(config.validate({ endpoint: p.endpoint, model: p.model, apiKey: sample().apiKey }), '');
   }
   assert.equal(providers.indexOf(sample().endpoint), 3);
+  for (const p of providers.ALL.slice(0, 3)) assert.equal(providers.isOfficial(p.endpoint), true);
+  assert.equal(providers.isOfficial(sample().endpoint), false);
+  assert.equal(providers.isOfficial(''), false);
 });
 test('saved credentials cannot silently transfer to another endpoint', () => {
   assert.equal(config.retainedKey(sample().endpoint, sample()), sample().apiKey);
