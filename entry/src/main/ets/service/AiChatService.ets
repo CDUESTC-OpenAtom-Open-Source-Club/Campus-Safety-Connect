@@ -45,15 +45,20 @@ export class AiChatService {
     try {
       const chunks: Uint8Array[] = [];
       let size: number = 0;
+      let overflow: boolean = false;
       const request = new rcp.Request(config.endpoint, 'POST',
         { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + config.apiKey, 'Cache-Control': 'no-store' },
         JSON.stringify(AiChatService.payload(text, config.model, config.endpoint, appData, review)));
+      // 响应体在 RCP 的独立回调中投递：回调内抛异常只会使 fetch 以“Callback function termination”失败，
+      // 且无法可靠关闭会话，因此回调只累计大小并设置标记，由 fetch 返回后统一判断。
       request.destination = (data: ArrayBuffer): void => {
-          size += data.byteLength;
-          if (size > 256 * 1024) { session.close(); throw new Error('API 返回内容过大'); }
-          chunks.push(new Uint8Array(data));
-        };
+        if (overflow) return;
+        size += data.byteLength;
+        if (size > 256 * 1024) { overflow = true; return; }
+        chunks.push(new Uint8Array(data));
+      };
       const response = await session.fetch(request);
+      if (overflow) throw new Error('API 返回内容过大');
 
       if (response.statusCode === 401 || response.statusCode === 403) throw new Error('API 认证失败，请检查密钥和访问权限');
       if (response.statusCode === 429) throw new Error('API 调用受限，请检查额度或稍后重试');
