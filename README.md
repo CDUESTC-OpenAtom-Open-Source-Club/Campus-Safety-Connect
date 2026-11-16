@@ -268,6 +268,15 @@ hvigorw assembleHap --mode module -p product=default -p buildMode=debug
 
 ---
 
+## 参与贡献
+
+欢迎通过 Issue 报告问题或提出建议。提交代码前请阅读 [贡献指南](CONTRIBUTING.md)，其中包含环境准备、分支与提交信息约定、PR 必填验证项；发布前请按 [发布检查清单](RELEASE_CHECKLIST.md) 逐项确认版本、签名、模型哈希与出包产物。
+
+- Bug 与功能建议请使用仓库的 Issue 模板；请勿在 Issue 中粘贴密钥、签名口令、AGC 测试账号或未脱敏日志。
+- 新增或修改文档链接时，请确认目标文件真实存在于仓库且未被 `.gitignore` 排除。
+
+---
+
 ## 致谢与说明
 
 - 项目基于 OpenHarmony / HarmonyOS 官方原生能力开发
