@@ -13,4 +13,9 @@ export class AiProviderPresets {
     const index: number = AiProviderPresets.ALL.findIndex((preset: AiProviderPreset) => preset.endpoint === endpoint);
     return index < 0 ? 3 : index;
   }
+
+  /** True only for the three built-in official endpoints, never for custom addresses. */
+  static isOfficial(endpoint: string): boolean {
+    return AiProviderPresets.indexOf(endpoint) !== 3;
+  }
 }

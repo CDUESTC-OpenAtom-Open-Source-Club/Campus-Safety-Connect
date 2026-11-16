@@ -200,9 +200,13 @@ export struct AiAssistantPage {
     if (index === 0) { this.online = false; return; }
     if (!this.ready || this.config === null) { this.modelSelection = 0; this.settingsVisible = true; return; }
     if (this.online) return;
+    const endpoint: string = this.config.endpoint;
+    const official: boolean = AiProviderPresets.isOfficial(endpoint);
     AlertDialog.show({
       title: '启用在线问答？',
-      message: '问题将发送到你配置的服务：\n' + this.config.endpoint +
+      message: '问题将发送到你配置的服务：\n' + endpoint +
+        '\n目标主机：' + this.targetHost(endpoint) +
+        '\n服务商：' + (official ? '内置服务商' : '非内置服务商（密钥将发送到该主机）') +
         '\n\n发送本次问题；涉及应用安排时，会附带当前账号有权查看的相关任务、事件、提醒或课表摘要。不发送聊天历史、密码、密钥及联系人。答案另做一次内容审核，服务商可能保存内容并计费。',
       primaryButton: { value: '启用在线模式', action: () => { if (this.sameOwner()) { this.online = true; this.modelSelection = 1; } } },
       secondaryButton: { value: '继续使用小安', action: () => { this.modelSelection = 0; } },
@@ -216,6 +220,24 @@ export struct AiAssistantPage {
       apiKey: this.apiKey.trim() === '' ? AiConfigService.retainedKey(this.endpoint.trim(), this.config) : this.apiKey.trim() };
     this.formMessage = AiConfigService.validate(config);
     if (this.formMessage !== '') return;
+    if (!AiProviderPresets.isOfficial(config.endpoint)) { this.confirmCustomEndpoint(config); return; }
+    await this.persistConfig(config);
+  }
+
+  /** A custom host receives the API key, so the user must confirm the actual target before saving. */
+  private confirmCustomEndpoint(config: AiConfig): void {
+    AlertDialog.show({
+      title: '使用非内置服务商？',
+      message: '目标主机：' + this.targetHost(config.endpoint) + '\n完整地址：' + config.endpoint +
+        '\n\n该地址不在内置服务商列表，密钥将发送到该主机。请确认你信任该服务商。',
+      primaryButton: { value: '仍然保存', action: () => { this.persistConfig(config); } },
+      secondaryButton: { value: '取消', action: () => { if (this.sameOwner()) this.formMessage = '已取消保存'; } },
+      cancel: () => { if (this.sameOwner()) this.formMessage = '已取消保存'; }
+    });
+  }
+
+  private async persistConfig(config: AiConfig): Promise<void> {
+    if (this.busy || this.owner === '' || !this.sameOwner()) return;
     this.busy = true;
     try {
       await AiConfigService.save(this.owner, config, this.remember);
@@ -224,6 +246,12 @@ export struct AiAssistantPage {
       this.formMessage = this.remember ? '配置已加密保存' : '仅本次使用';
     } catch (_) { this.formMessage = '保存失败。请解锁设备；如设备不支持安全存储，可关闭“记住配置”后重试。'; }
     finally { this.busy = false; }
+  }
+
+  private targetHost(endpoint: string): string {
+    const marker: number = endpoint.indexOf('://');
+    const authority: string = marker < 0 ? endpoint : endpoint.substring(marker + '://'.length);
+    return authority.split('/')[0];
   }
 
   private askClearConfig(): void {
